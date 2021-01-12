@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sun.dao.SearchDao">
+    <select id="selectSongLikeKeyword" parameterType="String" resultType="com.sun.model.Song">
+        select * from song where songName like concat('%',#{keyword},'%')
+    </select>
+
+    <select id="selectReviewUserLikeKeyword" parameterType="String"
+            resultType="com.sun.model.ReviewUser">
+		select reviewuserId,userName,review,reviewTime
+		from
+			( select * from reviewuser where review like concat('%',#{keyword},'%') ) as reviewTb,user
+		where reviewTb.userId=user.userId
+	</select>
+
+    <select id="selectReviewSongLikeKeyword" parameterType="String"
+            resultType="com.sun.model.ReviewSong">
+		select reviewsongId,userName,review,reviewTime
+		from
+			( select * from reviewsong where review like concat('%',#{keyword},'%') ) as reviewTb,user
+		where reviewTb.userId=user.userId
+	</select>
+
+
+    <!-- 多个参数用#{0}按顺序表示 keyword,userId-->
+    <select id="selectUserLikeKeyword"
+            resultType="com.sun.model.User">
+		select * from (select * from user where userId != #{1} )as userTb
+		where userName like concat('%',#{0},'%')
+			  or
+			  email like concat('%',#{0},'%')
+	</select>
+
+</mapper>

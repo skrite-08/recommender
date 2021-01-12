@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sun.dao.ReviewDao">
+
+
+	<select id="SelectAllReviewUser" resultType="com.sun.model.ReviewUser">
+		select * from ReviewUser
+	</select>
+
+    <insert id="insertReviewUser" parameterType="com.sun.model.ReviewUser" >
+		insert into reviewuser (userId,targetUserId,review) values(#{userId},#{targetUserId},#{review})
+	</insert>
+
+    <select id="selectSuportByUserId" parameterType="int"
+            resultType="com.sun.model.Support">
+		select * from support where userId = #{userId}
+	</select>
+
+
+
+    <!-- 好久不用，一段大SQLs下来，感觉投都昏了...
+        （可能这种时候就体现出视图的优势了吧⊙o⊙）
+        目标：获取当前歌曲带有点赞数目的评论信息
+        songReviewWithUserNameTb表：
+            （1）先从评论表中选出与当前歌曲相关的元组
+            （2）再给相关的元组中的用户关联上昵称信息
+            （3）reviewId,userId,userName,review,reviewTime
+        likeCountTb表：
+            （1）先从评论表中选中与当前歌曲相关的元组并作评论ID投影
+            （2）根据相关的评论ID统计出评论被点赞的次数
+            （3）reviewId,count(reviewId) as likeCoefficient
+        songReviewWithUserNameTb左连接likeCountTb：
+            （1）将上面两个表在reviewId上面做左连接
+            （2）[mysql]用ifnull(字段名,默认值)填充连接的空缺值NULL
+            （3）[oracle]用nvl(字段名,默认值)填充连接的空缺值NULL
+        最终选择精彩评论的Top 10
+    -->
+    <select id="selectHotReviewUserWithSupportNumber" parameterType="int"
+            resultType="com.sun.model.ReviewUser">
+		select songReviewWithUserNameTb.reviewuserId,userName,review,reviewTime,ifnull(likeCoefficient,0) as likeCoefficient
+		 from
+			( select reviewuserId,user.userId,userName,review,reviewTime
+			from ( select reviewuserId,userId,review,reviewTime as reviewTime from reviewuser where targetUserId=#{targetUserId} ) as songReviewTb,user
+			where songReviewTb.userId=user.userId
+			) as songReviewWithUserNameTb
+
+		left join
+
+			( select reviewuserId,count(reviewuserId) as likeCoefficient from support
+			where reviewuserId in ( select reviewuserId from reviewuser where targetUserId=#{targetUserId} )
+			group by reviewUserId
+			) as likeCountTb
+
+		on songReviewWithUserNameTb.reviewuserId=likeCountTb.reviewuserId
+
+		order by likeCoefficient desc
+	</select>
+
+    <select id="selectBySupport" parameterType="com.sun.model.Support"
+            resultType="com.sun.model.Support">
+		select * from support where userId = #{userId} and reviewuserId =#{reviewuserId}
+	</select>
+
+    <insert id="insertSupportRecord" parameterType="com.sun.model.Support" >
+		insert into support (userId,reviewuserId) values(#{userId},#{reviewuserId})
+	</insert>
+
+    <delete id="deleteSupportRecordById" parameterType="int" >
+		delete from support where supportId = #{supportId}
+	</delete>
+
+
+
+
+
+
+
+
+
+
+
+
+	<select id="SelectAllReviewSong" resultType="com.sun.model.ReviewSong">
+		select * from ReviewSong
+	</select>
+
+	<insert id="insertReviewSong" parameterType="com.sun.model.Like" >
+		insert into reviewsong (userId,songId,review) values(#{userId},#{songId},#{review})
+	</insert>
+
+	<select id="selectLikeByUserId" parameterType="int"
+			resultType="com.sun.model.Like">
+		select * from liking where userId = #{userId}
+	</select>
+
+
+	<select id="selectHotReviewSongWithLikeNumber" parameterType="int"
+			resultType="com.sun.model.ReviewSong">
+		select songReviewWithUserNameTb.reviewsongId,userName,review,reviewTime,ifnull(likeCoefficient,0) as likeCoefficient
+		 from
+			( select reviewsongId,user.userId,userName,review,reviewTime
+			from ( select reviewsongId,userId,review,date(reviewTime) as reviewTime from reviewsong where songId=#{songId} ) as songReviewTb,user
+			where songReviewTb.userId=user.userId
+			) as songReviewWithUserNameTb
+
+		left join
+
+			( select reviewsongId,count(reviewsongId) as likeCoefficient from liking
+			where reviewsongId in ( select reviewsongId from reviewsong where songId=#{songId} )
+			group by reviewsongId
+			) as likeCountTb
+
+		on songReviewWithUserNameTb.reviewsongId=likeCountTb.reviewsongId
+
+		order by likeCoefficient desc limit 10
+	</select>
+
+	<select id="selectByLike" parameterType="com.sun.model.Like"
+			resultType="com.sun.model.Like">
+		select * from liking where userId = #{userId} and reviewsongId =#{reviewsongId}
+	</select>
+
+	<insert id="insertLikeRecord" parameterType="com.sun.model.Like" >
+		insert into liking (userId,reviewsongId) values(#{userId},#{reviewsongId})
+	</insert>
+
+	<delete id="deleteLikeRecordById" parameterType="int" >
+		delete from liking where likeId = #{likeId}
+	</delete>
+
+	<select id="selectNewReviewSongWithLikeNumber" parameterType="int"
+			resultType="com.sun.model.ReviewSong">
+		select songReviewWithUserNameTb.reviewsongId,userName,review,reviewTime,ifnull(likeCoefficient,0) as likeCoefficient
+		 from
+			( select reviewsongId,user.userId,userName,review,reviewTime
+			from ( select reviewsongId,userId,review, reviewTime from reviewsong where songId=#{songId} ) as songReviewTb,user
+			where songReviewTb.userId=user.userId
+			) as songReviewWithUserNameTb
+
+		left join
+
+			( select reviewsongId,count(reviewsongId) as likeCoefficient from liking
+			where reviewsongId in ( select reviewsongId from reviewsong where songId=#{songId} )
+			group by reviewsongId
+			) as likeCountTb
+
+		on songReviewWithUserNameTb.reviewsongId=likeCountTb.reviewsongId
+
+		order by reviewTime desc
+	</select>
+
+
+	<delete id="deleteByIds" parameterType="int">
+		delete from reviewsong where reviewsongId in
+		<foreach collection="array" item="reviewId" open="(" close=")" separator=",">
+			#{reviewsongId}
+		</foreach>
+	</delete>
+
+
+
+</mapper>

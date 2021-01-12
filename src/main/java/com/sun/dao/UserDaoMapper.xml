@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sun.dao.UserDao">
+
+	<select id="isAdmin" parameterType="com.sun.model.User" resultType="java.lang.Boolean">
+		select * from user where userId=#{userId} and roleId=1
+	</select>
+
+	<select id="selectRoleByUserId" parameterType="com.sun.model.User" resultType="int">
+		select roleId from user where email=#{email} and password=#{password}
+	</select>
+
+    <select id="selectByUser" parameterType="com.sun.model.User"
+            resultType="com.sun.model.User">
+		select * from user where email=#{email} and password=#{password}
+	</select>
+
+    <select id="selectByEmail" parameterType="String"
+            resultType="com.sun.model.User">
+		select * from user where email=#{email}
+	</select>
+
+    <insert id="insert" parameterType="com.sun.model.User">
+		insert into user(email,password) select #{email},#{password}
+		from dual where #{email} not in (select email from user)
+	</insert>
+
+    <select id="selectAll"
+            resultType="com.sun.model.User">
+		select * from user
+	</select>
+
+    <select id="selectAllUserId"
+            resultType="Integer">
+		select userId from user
+	</select>
+
+
+
+    <select id="selectAllSchools"
+            resultType="com.sun.model.School">
+		select * from school
+	</select>
+
+    <select id="selectAllMajors"
+            resultType="com.sun.model.Major">
+		select * from major
+	</select>
+
+    <update id="updateUserInfo" parameterType="com.sun.model.User">
+		update user set userName=#{userName},schoolId=#{schoolId},majorId=#{majorId},gender=#{gender},
+		selfInfo=#{selfInfo},expectedInfo=#{expectedInfo},photoAddress=#{photoAddress}
+		where userId=#{userId}
+	</update>
+
+    <update id="updateActiveStatus" parameterType="com.sun.model.User">
+		update user set status=1 where userId=#{userId}
+	</update>
+
+    <select id="selectLikingUserIds" parameterType="int"
+            resultType="int">
+		select likingUserId from likingUser where userId=#{userId}
+	</select>
+
+    <select id="selectLikingByLiking" parameterType="com.sun.model.LikingUser"
+            resultType="com.sun.model.LikingUser">
+		select * from likingUser where userId=#{userId} and likingUserId=#{likingUserId}
+	</select>
+
+
+    <insert id="insertLiking" parameterType="com.sun.model.LikingUser">
+		insert into likingUser(userId,likingUserId) values(#{userId},#{likingUserId})
+	</insert>
+
+    <delete id="deleteLikingById" parameterType="int">
+		delete from likingUser where likeId=#{likeId}
+	</delete>
+
+    <!--
+    获取和当前用户相互喜欢的用户信息
+    （1）先获取当前用户喜欢的用户Id集合likingTb（排除自己）
+( select likingUserId from liking where userId=#{userId} and likingUserId!=#{userId} )
+    （2）再获取likingTb中的用户喜欢的用户是当前用户的用户Id集matchingTb
+( select userId from liking
+      where userId in
+        ( select likingUserId from liking where userId=#{userId} and likingUserId!=#{userId} )
+        and likingUserId=#{userId} )
+    （3）最后根据matchingTb中的用户Id从User表中得到用户的全部信息
+
+     -->
+    <select id="selectMatchingUsers" parameterType="int"
+            resultType="com.sun.model.User">
+		select * from user
+		where userId in
+			( select userId from liking
+			  where userId in
+				( select likingUserId from liking where userId=#{userId} and likingUserId!=#{userId} )
+				and likingUserId=#{userId} )
+	</select>
+
+    <select id="selectUserById" parameterType="int"
+            resultType="com.sun.model.User">
+		select * from user where userId=#{userId}
+	</select>
+
+    <update id="updateApplying">
+		update user set studentId=#{1},graduateType=#{2} where userId=#{0}
+	</update>
+
+    <select id="selectApplyingUsers"
+            resultType="com.sun.model.User">
+		select * from user where studentId is not null
+	</select>
+
+    <select id="selectReviewDynamicByUserId" parameterType="int"
+            resultType="com.sun.model.Dynamic">
+		select userName,reviewTime,dualTb.userId from user,
+		( select reviewTime,userId from review where targetUserId=#{userId} )as reviewTb,
+		( select #{userId} as userId from dual )as dualTb
+		where user.userId=reviewTb.userId
+		order by reviewTime desc
+	</select>
+
+    <select id="selectReviewsExceptSelf" parameterType="int"
+            resultType="com.sun.model.Review">
+		select userName,review,reviewTime,targetUserId from review,user
+		where review.userId !=#{userId} and user.userId=review.userId
+		order by reviewTime desc
+	</select>
+
+	<delete id="deleteByIds" parameterType="int">
+		delete from user where userId in
+		<foreach collection="array" item="userId" open="(" close=")" separator=",">
+			#{userId}
+		</foreach>
+	</delete>
+
+
+</mapper>

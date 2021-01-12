@@ -1,0 +1,344 @@
+package com.sun.service.impl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import com.sun.dao.UserDao;
+import com.sun.model.*;
+import com.sun.service.UserService;
+import com.sun.utils.Request;
+import com.sun.utils.Static;
+
+import javax.servlet.http.HttpServletRequest;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+@Service("userServiceImpl")
+public class UserServiceImpl implements UserService {
+
+	@Autowired
+	private UserDao userDao;
+
+	public boolean isAdmin(HttpServletRequest request){
+		int role = userDao.selectRoleByUserId(Request.getUserFromHttpServletRequest(request));
+		if(role==1){
+			return true;
+		}
+		else
+			return false;
+	}
+
+	public User findLogin(User u) {
+		return userDao.selectByUser(u);
+	}
+
+	public boolean isEmailExisted(String email) {
+		boolean isEmailExisted=false;
+		User result  = userDao.selectByEmail(email);
+		if(result!=null) {
+			isEmailExisted=true;
+		}
+		return isEmailExisted;
+	}
+
+	public boolean insert(User u) {
+		boolean isInsertSuccessful=false;
+		int affectedRows=userDao.insert(u);
+		if(affectedRows>0) {
+			isInsertSuccessful=true;
+		}
+		return isInsertSuccessful;
+	}
+
+	public List<User> getAllUserRecords() {
+		return userDao.selectAll();
+	}
+
+	public List<User> getAllRecordsWithLikingFlag(HttpServletRequest request) {
+		List<User> userList=userDao.selectAll();
+
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		if(user!=null && userList!=null) {
+			//获取当前用户的喜欢用户Id列表
+			List<Integer> likingUserIdList=userDao.selectLikingUserIds(user.getUserId());
+			if(likingUserIdList!=null) {
+				for(User u:userList) {
+					for(Integer likingUserId:likingUserIdList) {
+						if(u.getUserId()==likingUserId) {
+							u.setWhetherLiking(true);
+							break;
+						}
+					}
+				}
+			}
+		}
+		return userList;
+	}
+
+	public List<Integer> getAllUserIdRecords() {
+		return userDao.selectAllUserId();
+	}
+
+	public boolean isHasPrivilege(HttpServletRequest request) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		if(user==null) {
+			return false;
+		}else {
+			return true;
+		}
+
+	}
+
+
+	public List<School> getAllSchools() {
+		return userDao.selectAllSchools();
+	}
+
+	public List<Major> getAllMajors() {
+		return userDao.selectAllMajors();
+	}
+
+
+	public boolean addInfo(HttpServletRequest request, User u, MultipartFile photo) {
+		boolean isInsertSuccessful=false;
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		//为当前用户添加信息
+		user.setUserName(u.getUserName());
+		user.setGender(u.getGender());
+		user.setSchoolId(u.getSchoolId());
+		user.setRoleId(u.getRoleId());
+		user.setSelfInfo(u.getSelfInfo());
+		user.setExpectedInfo(u.getExpectedInfo());
+		String originalFilename=photo.getOriginalFilename();
+		String suffix=originalFilename.substring(originalFilename.lastIndexOf("."));
+		String photoAddress="photo/"+user.getUserId()+suffix;
+		saveFile(photo,request.getServletContext().getRealPath(photoAddress));
+		user.setPhotoAddress(photoAddress);
+		int affectedRows=userDao.updateUserInfo(user);
+		if(affectedRows>0) {
+			isInsertSuccessful=true;
+			userDao.updateActiveStatus(user);
+		}
+		return isInsertSuccessful;
+	}
+
+	private void saveFile(MultipartFile multipartFile, String realFilePath) {
+		try {
+			InputStream inputStream=multipartFile.getInputStream();
+			FileOutputStream fileOutputStream = new FileOutputStream(realFilePath);
+			try {
+				int b = 0;
+				while ((b = inputStream.read()) != -1) {
+					fileOutputStream.write(b);
+				}
+			}finally{
+				inputStream.close();
+				fileOutputStream.close();
+			}
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	public boolean isHasPrivilegeAndActive(HttpServletRequest request) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		if(user==null || user.getStatus()==0 ) {
+			return false;
+		}else {
+			return true;
+		}
+
+	}
+
+	/**
+	 * 由于没有得到官方的验证途径，这里简单的使用文本验证
+	 */
+	public boolean checkUsernameLegal(HttpServletRequest request,String userName) {
+		//是否开启验证,若没有开启，则默认身份都合法
+		if(!Static.IS_Authorized) {
+			return true;
+		}
+		String legalNameFilePath =this.getClass().getClassLoader().getResource("legalName.txt").getPath();
+		System.out.println(legalNameFilePath);
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(legalNameFilePath));
+			String s = null;
+			try {
+				while((s = br.readLine())!=null){
+					String name=s.trim();
+					if(name.equals(userName)) {
+						System.out.println(name);
+						return true;
+					}
+				}
+			}finally {
+				br.close();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+
+	public boolean likingUserChange(HttpServletRequest request, int likingUserId) {
+		boolean isCurLiked=true;
+		User user=userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		Liking likingUser=userDao.selectLikingByLiking(new LikingUser(user.getUserId(),likingUserId));
+		if(likingUser==null) {
+			//点击的用户没有被喜欢过
+			isCurLiked=false;
+			//添加喜欢记录
+			userDao.insertLiking(new LikingUser(user.getUserId(),likingUserId));
+		}else {
+			//点击的用户已经被喜欢过了，这次再次点击，取消喜欢
+			userDao.deleteLikingById(likingUser.getLikeId());
+		}
+		//返回改变后的喜欢状态
+		return !isCurLiked;
+	}
+
+	public List<User> getAdmiringRecordsWithLikingFlag(HttpServletRequest request) {
+		List<User> userList=userDao.selectAll();
+		List<User> admiringUserList=new ArrayList<User>();
+
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		if(user!=null && userList!=null) {
+			//获取当前用户的喜欢用户Id列表
+			List<Integer> likingUserIdList=userDao.selectLikingUserIds(user.getUserId());
+			if(likingUserIdList!=null) {
+				for(User u:userList) {
+					for(Integer likingUserId:likingUserIdList) {
+						if(u.getUserId()==likingUserId) {
+							u.setWhetherLiking(true);
+							admiringUserList.add(u);
+							break;
+						}
+					}
+				}
+			}
+		}
+		return admiringUserList;
+	}
+
+	public List<User> getMatchingRecordsWithLikingFlag(HttpServletRequest request) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		//获取和当前用户相互喜欢的用户信息
+		List<User> matchingUserList=userDao.selectMatchingUsers(user.getUserId());
+		//添加喜欢标记（这里是相互喜欢，所以直接全部添加标记即可）
+		matchingUserList.forEach(new Consumer<User>() {
+			public void accept(User user) {
+				user.setWhetherLiking(true);
+			}
+		});
+		return matchingUserList;
+	}
+
+	public User getUserById(HttpServletRequest request, int userId) {
+		return userDao.selectUserById(userId);
+	}
+
+	public String getCurUserPhotoAddress(HttpServletRequest request) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		return user.getPhotoAddress();
+	}
+
+	public boolean isApplyed(HttpServletRequest request) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		if(user.getStudentId()!=null) {
+			//已经申请过了
+			return true;
+		}else {
+			return false;
+		}
+
+	}
+
+	public void updateApplying(HttpServletRequest request, String studentId, int graduateType) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		userDao.updateApplying(user.getUserId(),studentId,graduateType);
+	}
+
+	public String getApplyingInfo() {
+		final StringBuilder sb=new StringBuilder();
+		List<User> applyingUserList=userDao.selectApplyingUsers();
+		applyingUserList.forEach(new Consumer<User>() {
+
+			public void accept(User user) {
+				sb.append(user.getUserName());sb.append("\t");
+				sb.append(user.getStudentId());sb.append("\t");
+				int graduateType=user.getGraduateType();
+				String type=null;
+				if(graduateType==1) {
+					type="本校推免";
+				}else if(graduateType==2) {
+					type="外校推免";
+				}else if(graduateType==3) {
+					type="本校考研";
+				}else {
+					type="外校考研";
+				}
+				sb.append(type);sb.append("\n");
+			}
+
+		});
+		return sb.toString();
+	}
+
+	public List<Dynamic> getReviewDynamicList(HttpServletRequest request) {
+		User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		List<Dynamic> reviewDynamicList=userDao.selectReviewDynamicByUserId(user.getUserId());
+
+		return reviewDynamicList;
+	}
+
+	public List<Dynamic> getAtDynamicList(HttpServletRequest request) {
+		final User user = userDao.selectByUser(Request.getUserFromHttpServletRequest(request));
+		/**
+		 * 由于本系统使用的人数较少，评论信息较少，用户之间的交互也是，所以这里采用从评论中提取@信息的方式
+		 * 当数据量较大的时候，这不是一种好方式！
+		 */
+		//获取除了自己产生以外的其他评论信息
+		List<Review> reviewList=userDao.selectReviewsExceptSelf(user.getUserId());
+		final List<Dynamic> atDynamicList=new ArrayList<Dynamic>();
+		reviewList.forEach(new Consumer<Review>() {
+
+			public void accept(Review review) {
+				if(isReviewAtCurUser(review.getReview(),user.getUserName())) {
+					atDynamicList.add(new Dynamic(review.getUserName(),review.getReviewTime(),review.getTargetUserId()));
+				}
+			}
+
+		});
+
+
+		return atDynamicList;
+	}
+
+	/**
+	 * 判定当前评论字符串里面是否@了当前用户名
+	 * 这里由于人数较少，所以采用用户名的方式，这并不是一种较好的方式！
+	 * @param review
+	 * @param userName
+	 * @return
+	 */
+	private boolean isReviewAtCurUser(String review, String userName) {
+		String str="@"+userName;
+		if(review!=null && review.contains(str)) {
+			return true;
+		}
+		return false;
+	}
+
+	public void batchDeleteById(int[] userIds) {
+		if(userIds==null) {
+			return;
+		}
+		userDao.deleteByIds(userIds);
+
+	}
+
+}

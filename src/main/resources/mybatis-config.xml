@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <typeAliases>
+        <package name="com.sun.model"/>
+
+
+    </typeAliases>
+    <mappers>
+<!--        <mapper resource="com/sun/dao/*.xml"/>-->
+<!--        <mapper resource="com/sun/dao/MySongDaoMapper.xml"/>-->
+<!--        <mapper resource="com/sun/dao/MySongDaoMapper.xml"/>-->
+
+        <mapper resource="com/sun/dao/UserDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/ReviewDaoMapper.xml"/>
+
+        <mapper resource="com/sun/dao/SongDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/TrendingSongDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/DownloadDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/PlayDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/LikingDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/NewTrackOnSheIfDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/PersonalSongDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/SearchDaoMapper.xml"/>
+        <mapper resource="com/sun/dao/MySongDaoMapper.xml"/>
+    </mappers>
+
+</configuration>

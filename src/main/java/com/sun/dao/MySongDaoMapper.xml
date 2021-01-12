@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="con.sun.dao.MySongDao">
+
+<!--	<select id="selectLikingSong" parameterType="com.sun.model.User" resultType="com.sun.model.Song">-->
+<!--		select * from likingsong,song where userId=#{userId} and likingsong.songId=song.songId-->
+<!--	</select>-->
+
+<!--	<select id="selectMyRecentSong" parameterType="com.sun.model.User" resultType="com.sun.model.Song">-->
+<!--		select * from song where songId in&ndash;&gt;-->
+<!--		(select distinct songId from playsong where userId=#{userId})-->
+<!--	</select>-->
+
+    <select id="selectPersonalSongFromA" parameterType="com.sun.model.User" resultType="com.sun.model.Song">
+		select * from reca,song
+		where reca.userId=#{userId} and reca.songId=song.songId
+	</select>
+
+    <select id="selectPersonalSongFromB" parameterType="com.sun.model.User" resultType="com.sun.model.Song">
+		select * from recb,song
+		where recb.userId=#{userId} and recb.songId=song.songId
+	</select>
+
+
+
+
+
+</mapper>

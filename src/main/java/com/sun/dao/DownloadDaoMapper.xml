@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sun.dao.DownloadDao">
+
+<!--    <insert id="insert" parameterType="com.sun.model.DownloadSongRecord">-->
+<!--		insert into downloadsong(userId,songId) values(#{userId},#{songId})-->
+<!--	</insert>-->
+
+<!--    <select id="selectAll" resultType="con.sun.model.DownloadSongRecord">-->
+<!--		select * from downloadsong-->
+<!--	</select>-->
+
+
+
+</mapper>
